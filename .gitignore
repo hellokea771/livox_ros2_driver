@@ -6,3 +6,55 @@ livox_ros2_driver/launch/__pycache__/*.pyc
 
 
 
+#############################################
+# RoboMaster Sentry Algorithm Git Ignore
+#############################################
+
+# --- ROS 2 Workspaces ---
+build/
+install/
+log/
+
+# --- C++ ---
+*.o
+*.so
+*.a
+*.la
+*.lo
+*.out
+*.exe
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# --- Large Files & Data (Crucial for RM) ---
+# Ignore all point cloud files
+*.pcd
+*.ply
+# Ignore all ROS recording bags
+*.bag
+*.mcap
+*.db3
+*.db3-wal
+# Ignore large log files
+*.log
+
+# --- IDEs & System ---
+.vscode/
+.idea/
+cmake-build-*/
+.DS_Store
+Thumbs.db
+*~
+
+# --- Compiled Maps (Keep small nav maps but ignore raw ones) ---
+# !path/to/your/actual_map.pgm
+# !path/to/your/actual_map.yaml
+
+# --- Specific to MPC / Optimization ---
+# If you use solvers like CasADi and don't want to upload generated C
+# auto_generated_*.cpp
+# auto_generated_*.h
