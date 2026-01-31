@@ -91,6 +91,37 @@ private:
     void sync_callback(const sensor_msgs::msg::Image::ConstSharedPtr& img_msg,
                        const sensor_msgs::msg::PointCloud2::ConstSharedPtr& cloud_msg) {
         
+        // ==================== [时间戳差异检查] ====================
+        auto img_stamp = rclcpp::Time(img_msg->header.stamp);
+        auto cloud_stamp = rclcpp::Time(cloud_msg->header.stamp);
+        auto current_time = this->get_clock()->now();
+        
+        double time_diff_ms = std::abs(img_stamp.seconds() - cloud_stamp.seconds()) * 1000.0;
+        double img_delay_ms = (current_time.seconds() - img_stamp.seconds()) * 1000.0;
+        double cloud_delay_ms = (current_time.seconds() - cloud_stamp.seconds()) * 1000.0;
+        
+        // 每次都输出时间戳差异信息
+        RCLCPP_INFO(this->get_logger(), 
+            "=== 时间戳检查 ===\n"
+            "相机时间戳: %u.%09u\n"
+            "雷达时间戳: %u.%09u\n"
+            "时间戳差异: %.3f ms\n"
+            "相机延迟: %.3f ms\n"
+            "雷达延迟: %.3f ms",
+            img_msg->header.stamp.sec, img_msg->header.stamp.nanosec,
+            cloud_msg->header.stamp.sec, cloud_msg->header.stamp.nanosec,
+            time_diff_ms, img_delay_ms, cloud_delay_ms);
+        
+        // 时间戳差异过大警告
+        if (time_diff_ms > 100.0) {  // 超过100ms
+            RCLCPP_WARN(this->get_logger(), "警告: 时间戳差异过大 (%.3f ms)，可能影响融合质量!", time_diff_ms);
+        } else if (time_diff_ms > 50.0) {  // 超过50ms
+            RCLCPP_WARN(this->get_logger(), "注意: 时间戳差异较大 (%.3f ms)", time_diff_ms);
+        } else {
+            RCLCPP_INFO(this->get_logger(), "时间同步良好 (差异: %.3f ms)", time_diff_ms);
+        }
+        // ===================================================
+        
         // --- 手动包装 Image ---
         cv::Mat current_img_raw;
         int type;
@@ -184,10 +215,7 @@ private:
         out_msg.header = cloud_msg->header;
         colored_cloud_pub_->publish(out_msg);
 
-        // 打印时间差验证
-        RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 5000, 
-            "同步融合成功! 延迟: %.3f ms", 
-            std::abs(rclcpp::Time(img_msg->header.stamp).seconds() - rclcpp::Time(cloud_msg->header.stamp).seconds()) * 1000.0);
+        RCLCPP_INFO(this->get_logger(), "融合完成，输出 %zu 个着色点", colored_cloud->size());
     }
 };
 
