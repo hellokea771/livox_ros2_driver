@@ -27,6 +27,7 @@
 #include <inttypes.h>
 #include <math.h>
 #include <stdint.h>
+#include <chrono>
 
 #include <rclcpp/rclcpp.hpp>
 #include <pcl_conversions/pcl_conversions.h>
@@ -152,7 +153,12 @@ uint32_t Lddc::PublishPointcloud2(LidarDataQueue *queue, uint32_t packet_num,
   InitPointcloud2MsgHeader(cloud);
   
   // ==================== [核心修改: PointCloud2 使用系统时间] ====================
-  cloud.header.stamp = rclcpp::Clock().now();
+  auto system_time = std::chrono::system_clock::now();
+  auto time_since_epoch = system_time.time_since_epoch();
+  auto secs = std::chrono::duration_cast<std::chrono::seconds>(time_since_epoch);
+  auto nanosecs = std::chrono::duration_cast<std::chrono::nanoseconds>(time_since_epoch - secs);
+  cloud.header.stamp.sec = secs.count();
+  cloud.header.stamp.nanosec = nanosecs.count();
   // ==========================================================================
 
   cloud.data.resize(packet_num * kMaxPointPerEthPacket *
@@ -274,8 +280,10 @@ uint32_t Lddc::PublishPointcloudData(LidarDataQueue *queue, uint32_t packet_num,
 
   // ==================== [核心修改: PCL PointCloud 使用系统时间] ====================
   // 注意：PCL 消息的 stamp 是 unit64_t(微秒)，不是 rclcpp::Time
-  rclcpp::Time now = rclcpp::Clock().now();
-  cloud.header.stamp = now.nanoseconds() / 1000; 
+  auto system_time = std::chrono::system_clock::now();
+  auto time_since_epoch = system_time.time_since_epoch();
+  auto microsecs = std::chrono::duration_cast<std::chrono::microseconds>(time_since_epoch);
+  cloud.header.stamp = microsecs.count();
   // =========================================================================
 
   uint8_t point_buf[2048];
@@ -340,7 +348,19 @@ uint32_t Lddc::PublishPointcloudData(LidarDataQueue *queue, uint32_t packet_num,
     pcl::toROSMsg(cloud,cloud_ros);
     
     // ==================== [核心修改: 确保转为 ROS 消息后时间戳一致] ====================
-    cloud_ros.header.stamp = now; 
+    auto system_time = std::chrono::system_clock::now();
+    auto time_since_epoch = system_time.time_since_epoch();
+    auto secs = std::chrono::duration_cast<std::chrono::seconds>(time_since_epoch);
+    auto nanosecs = std::chrono::duration_cast<std::chrono::nanoseconds>(time_since_epoch - secs);
+    cloud_ros.header.stamp.sec = secs.count();
+    cloud_ros.header.stamp.nanosec = nanosecs.count();
+    
+    // 调试输出
+    static int debug_count = 0;
+    if (debug_count++ % 100 == 0) {  // 每100次输出一次
+        printf("LIVOX TIMESTAMP DEBUG: sec=%u, nanosec=%u\n", 
+               cloud_ros.header.stamp.sec, cloud_ros.header.stamp.nanosec);
+    }
     // =========================================================================
     
     publisher->publish(cloud_ros);
@@ -433,7 +453,12 @@ uint32_t Lddc::PublishCustomPointcloud(LidarDataQueue *queue,
       // ==================== [核心修改: CustomMsg 使用系统时间] ====================
       // convert to ros time stamp
       // livox_msg.header.stamp = rclcpp::Time(timestamp); // 原代码注释掉
-      livox_msg.header.stamp = rclcpp::Clock().now();      // 换成这个
+      auto system_time = std::chrono::system_clock::now();
+      auto time_since_epoch = system_time.time_since_epoch();
+      auto secs = std::chrono::duration_cast<std::chrono::seconds>(time_since_epoch);
+      auto nanosecs = std::chrono::duration_cast<std::chrono::nanoseconds>(time_since_epoch - secs);
+      livox_msg.header.stamp.sec = secs.count();
+      livox_msg.header.stamp.nanosec = nanosecs.count();
       // =======================================================================
       
     } else {
@@ -509,7 +534,12 @@ uint32_t Lddc::PublishImuData(LidarDataQueue *queue, uint32_t packet_num,
   if (timestamp) {
     // ==================== [核心修改: IMU 消息使用系统时间] ====================
     // imu_data.header.stamp = rclcpp::Time(timestamp);  // 原代码注释掉
-    imu_data.header.stamp = rclcpp::Clock().now();       // 换成这个
+    auto system_time = std::chrono::system_clock::now();
+    auto time_since_epoch = system_time.time_since_epoch();
+    auto secs = std::chrono::duration_cast<std::chrono::seconds>(time_since_epoch);
+    auto nanosecs = std::chrono::duration_cast<std::chrono::nanoseconds>(time_since_epoch - secs);
+    imu_data.header.stamp.sec = secs.count();
+    imu_data.header.stamp.nanosec = nanosecs.count();
     // =====================================================================
   }
 
